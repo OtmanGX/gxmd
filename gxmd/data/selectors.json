@@ -1,0 +1,25 @@
+{
+  "manga-1000.net": {
+    "list_chapters": "#list-chapter .chapters-list-ul a",
+    "chapter_link_attr": "href",
+    "chapter_name_attr": "href",
+    "chapter_images": "#vertical-content img",
+    "image_link_attr": "data-src",
+    "render": true
+  },
+  "topmanhua.com": {
+    "manga_name": ".post-title > h1",
+    "list_chapters": ".listing-chapters_wrap a",
+    "chapter_images": ".reading-content img"
+  },
+  "mortalsgroove.com": {
+    "manga_name": ".post-title > h1",
+    "list_chapters": ".listing-chapters_wrap a",
+    "chapter_images": ".reading-content img"
+  },
+  "hivescans.com": {
+    "list_chapters": "#chapterlist > ul:nth-child(1) a",
+    "chapter_images": "#readerarea img",
+    "image_link_attr": "src"
+  }
+}
