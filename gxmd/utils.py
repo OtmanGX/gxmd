@@ -5,6 +5,7 @@ import random
 import re
 import string
 import sys
+from gxmd.constants import _RE_COMBINE_WHITESPACE
 
 
 class GXMDownloaderError(Exception):
@@ -61,3 +62,7 @@ def get_threads():
         return int(os.environ['NUMBER_OF_PROCESSORS'])
     else:
         return int(os.popen('grep -c cores /proc/cpuinfo').read())
+
+
+def combine_whitespaces(my_str: str):
+    return _RE_COMBINE_WHITESPACE.sub(" ", my_str).strip()

@@ -7,6 +7,7 @@ from gxmd.constants import USER_AGENT
 from gxmd.entities.manga_chapter import MangaChapter
 from gxmd.entities.manga_selector import MangaSelector
 from gxmd.parsers.exceptions import *
+from gxmd.utils import combine_whitespaces
 
 
 class RequestParser(IMangaParser):
@@ -58,7 +59,7 @@ class RequestParser(IMangaParser):
                 if element_text is None:
                     raise ParseChapterNameException(chapter_name_attr)
             else:
-                element_text = element.text
+                element_text = combine_whitespaces(tuple(element.stripped_strings)[0])
             if self.manga_selector.chapter_name_attr == 'href':
                 element_text = posixpath.basename(element_text.strip().rstrip("/"))
             chapter_name = element_text.strip().splitlines()[0].strip()

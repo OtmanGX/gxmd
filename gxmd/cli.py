@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import sys
+import traceback
 from gxmd.args import create_argparser
 from gxmd.download_manager import DownloadManager
 from gxmd.log import log_error
@@ -53,6 +54,7 @@ def main():
     except Exception as e:
         log_error(f"internal error: {e}")
         res = 2
+        traceback.print_exc(file=sys.stderr)
     return res
 
 

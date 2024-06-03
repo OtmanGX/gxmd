@@ -25,7 +25,7 @@ def create_argparser():
     parser.add_argument("-n", type=int, default=4,
                         help='The number of concurrent downloads allowed')
 
-    parser.add_argument('--version', action='version', version='%(prog)s 0.1.0')
+    parser.add_argument('--version', action='version', version='%(prog)s 0.1.4a')
 
     # optional bash completion
     try:
