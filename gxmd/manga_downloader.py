@@ -124,7 +124,7 @@ class MangaDownloader:
             f"Downloading Chapter {chapter.name}"
         self.download_manager.download_files(
             links=images_to_download,
-            headers={'Referer': chapter.link, 'User-Agent': USER_AGENT},
+            headers={'Referer': chapter.link, 'User-Agent': USER_AGENT, 'Accept-Encoding': 'identity'},
             path=os.path.join(self.download_manager.downloads_directory, self.manga.title, chapter.name),
             start_message=start_message,
         )

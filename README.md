@@ -17,7 +17,7 @@ directory
     `gxmd <manga_url>`  
 Replace `<manga_url>`  with the URL of the manga.
 
-## Usage
+_## Usage
     # help
     gxmd -h
     gxmd --help
@@ -30,7 +30,7 @@ Replace `<manga_url>`  with the URL of the manga.
     # make 8 simultaneous connections
     gxmd -n 8 http://manga-url-here/manga-name
     # use a specific json file where manga selectors are stored 
-    gxmd -c mangas.json http://manga-url-here/manga-name
+    gxmd -c mangas.json http://manga-url-here/manga-name_
 
 
 ## Contributing

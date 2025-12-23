@@ -7,19 +7,65 @@
     "image_link_attr": "data-src",
     "render": true
   },
-  "topmanhua.com": {
-    "manga_name": ".post-title > h1",
-    "list_chapters": ".listing-chapters_wrap a",
-    "chapter_images": ".reading-content img"
-  },
   "mortalsgroove.com": {
     "manga_name": ".post-title > h1",
-    "list_chapters": ".listing-chapters_wrap a",
+    "list_chapters": "li.wp-manga-chapter > a:nth-child(1)",
     "chapter_images": ".reading-content img"
   },
   "hivescans.com": {
-    "list_chapters": "#chapterlist > ul:nth-child(1) a",
+    "list_chapters": "#chaptrlist > ul:nth-child(1) a",
     "chapter_images": "#readerarea img",
+    "image_link_attr": "src"
+  },
+  "chapmanganato.to": {
+    "manga_name": ".story-info-right > h1:nth-child(1)",
+    "list_chapters": ".panel-story-chapter-list li.a-h > a:nth-child(1)",
+    "chapter_images": ".container-chapter-reader > img",
+    "image_link_attr": "src"
+  },
+  "flamecomics.me": {
+    "manga_name": ".entry-title",
+    "list_chapters": "#chapterlist > ul:nth-child(1) > li > a:nth-child(1)",
+    "chapter_images": "#readerarea > p:nth-child(n+2) > img",
+    "image_link_attr": "src"
+  },
+  "drakecomic.org": {
+    "manga_name": ".entry-title",
+    "list_chapters": "#chapterlist > ul:nth-child(1) > li > div:nth-child(1) > div:nth-child(1) > a:nth-child(1)",
+    "chapter_images": "#readerarea img",
+    "image_link_attr": "src"
+  },
+  "novelmic.com": {
+    "manga_name": ".post-title > h1",
+    "list_chapters": "li.wp-manga-chapter > a",
+    "chapter_images": ".reading-content img",
+    "render": true
+  },
+  "nightsup.net": {
+   "manga_name": ".entry-title",
+    "list_chapters": "#chapterlist > ul:nth-child(1) > li > div:nth-child(1) > div:nth-child(1) > a:nth-child(1)",
+    "chapter_images": "#readerarea img",
+    "image_link_attr": "src",
+    "render": true
+  },
+  "asuracomic.net": {
+   "manga_name": ".sm\\:text-left > span:nth-child(1)",
+    "list_chapters": "div.border > a:nth-child(1)",
+    "chapter_images": "div.center > img:nth-child(1)",
+    "image_link_attr": "src"
+  },
+  "olympustaff.com": {
+    "manga_name": ".col-md-9 > div:nth-child(1) > div:nth-child(1) > h1:nth-child(1)",
+    "list_chapters": ".eplister > ul:nth-child(2) > li > a:nth-child(1)",
+    "chapter_name_attr": "href",
+    "chapter_images": "div.page-break > img",
+    "image_link_attr": "src"
+  },
+   "mangafire.to": {
+    "manga_name": ".manga-detail div.info > h1",
+    "list_chapters": ".eplister > ul:nth-child(2) > li > a:nth-child(1)",
+    "chapter_name_attr": "href",
+    "chapter_images": "div.page-break > img",
     "image_link_attr": "src"
   }
 }

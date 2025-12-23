@@ -52,7 +52,7 @@ class RequestParser(IMangaParser):
         chapters_web_elements = self.soup.select(selector)
         if chapters_web_elements is None or len(chapters_web_elements) == 0:
             raise ParseChaptersListException(selector)
-        for element in chapters_web_elements:
+        for i, element in enumerate(chapters_web_elements):
             chapter_name_attr = self.manga_selector.chapter_name_attr
             if chapter_name_attr:
                 element_text = element.get(chapter_name_attr)
@@ -63,6 +63,8 @@ class RequestParser(IMangaParser):
             if self.manga_selector.chapter_name_attr == 'href':
                 element_text = posixpath.basename(element_text.strip().rstrip("/"))
             chapter_name = element_text.strip().splitlines()[0].strip()
+            if chapter_name.lower() == "chapter":
+                chapter_name = chapter_name + str(len(chapters_web_elements)-i)
             chapter_link_attr = self.manga_selector.chapter_link_attr or "href"
             chapter_link = element.get(chapter_link_attr).strip()
             if chapter_link is None:
