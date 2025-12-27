@@ -5,7 +5,8 @@ import random
 import re
 import string
 import sys
-from gxmd.constants import _RE_COMBINE_WHITESPACE
+
+from gxmd.config import _RE_COMBINE_WHITESPACE
 
 
 class GXMDownloaderError(Exception):

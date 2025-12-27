@@ -13,26 +13,33 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+import asyncio
 import sys
 import traceback
+
 from gxmd.args import create_argparser
-from gxmd.download_manager import DownloadManager
 from gxmd.log import log_error
-from gxmd.manga_downloader import MangaDownloader
+from gxmd.services.download_manager import DownloadManager
+from gxmd.services.exporter import CBZExporter, RawExporter
+from gxmd.services.manga_downloader import MangaDownloader
 from gxmd.utils import GXMDownloaderError
 
 
-def main():
+async def main():
     parser = create_argparser()
     args = parser.parse_args()
     res = 0
     try:
+        # Select exporter based on argument
+        exporter_class = CBZExporter if args.format == 'cbz' else RawExporter
+
         download_manager = DownloadManager(args.directory, args.n, True)
-        manga_downloader = MangaDownloader.load_manga(args.url, download_manager, args.config)
+        manga_downloader = MangaDownloader.load_manga(args.url, download_manager, exporter_class)
+        await manga_downloader.set_manga_info()
         if args.chapter:
-            manga_downloader.download_chapter(args.chapter)
+            await manga_downloader.download_chapter(args.chapter)
         elif args.start or args.end:
-            manga_downloader.download_chapters(args.start, args.end)
+            await manga_downloader.download_chapters(args.start, args.end)
         else:
             manga_downloader.list_chapters()
             start = input("Starting index to download (default=1): ").strip()
@@ -41,10 +48,11 @@ def main():
             end = input(f"Ending index to download (default={len(manga_downloader.chapters)}): ").strip()
             if end != "" and not end.isdigit():
                 raise Exception('A number is required or leave it empty for default value')
-            manga_downloader.download_chapters(
+            await manga_downloader.download_chapters(
                 int(start) if start != "" else 1,
                 int(end) if end != "" else len(manga_downloader.chapters)
             )
+
     except GXMDownloaderError as e:
         log_error(f"error: {e}")
         res = 1
@@ -55,9 +63,10 @@ def main():
         log_error(f"internal error: {e}")
         res = 2
         traceback.print_exc(file=sys.stderr)
+
     return res
 
 
 def main_cli():
     """Run main() function."""
-    sys.exit(main())
+    sys.exit(asyncio.run(main()))

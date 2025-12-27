@@ -1,79 +1,45 @@
-import requests
-import posixpath
-from bs4 import BeautifulSoup
-from requests import Response
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+from typing import Callable
+from urllib.parse import urlparse
+
+import aiohttp
+import cloudscraper
+from langchain_core.messages import HumanMessage
+from langchain_core.output_parsers import StrOutputParser
+from selectolax.parser import HTMLParser, Node
+
 from gxmd.abstracts.manga_parser import IMangaParser
-from gxmd.constants import USER_AGENT
+from gxmd.config import USER_AGENT, PARSE_MANGA_INFO_TEMPLATE, registry, PARSE_CHAPTER_IMAGES_TEMPLATE
 from gxmd.entities.manga_chapter import MangaChapter
-from gxmd.entities.manga_selector import MangaSelector
-from gxmd.parsers.exceptions import *
-from gxmd.utils import combine_whitespaces
+from gxmd.services.llm import llm, DEFAULT_SYSTEM_MESSAGE
 
 
 class RequestParser(IMangaParser):
-    soup: BeautifulSoup = None
+    soup: Node = None
+    cookies = {}  # Per-domain cookies
+    _session_pool: dict[str, aiohttp.ClientSession] = {}
 
-    def __init__(self, manga_selector: MangaSelector, manga_url: str, timeout=10):
-        self.manga_selector = manga_selector
+    def __init__(self, manga_url: str, timeout=10):
+        self.scraper_func = None
         self.timeout = timeout
-        self._load_page(manga_url)
+        self.executor = ThreadPoolExecutor(max_workers=2)  # Minimal threads
+        self.manga_url = manga_url
 
-    @property
-    def title(self) -> str:
-        """
-        Returns title of the current loaded webpage.
-        """
-        return self.soup.title.string.strip()
+    async def close(self):
+        """Close all sessions on shutdown"""
+        for session in self._session_pool.values():
+            await session.close()
+        self._session_pool.clear()
 
-    def parse_manga_name(self) -> str:
-        """
-        Parse manga name
+    async def parse_manga_info(self):
+        await self._load_page(self.manga_url)
+        scraper_func = await self._get_scraper_func('manga_info')
+        res: dict = scraper_func(self.soup)
+        return res.get('manga_name'), [MangaChapter(**chapter) for chapter in res.get('manga_chapters')]
 
-        Returns:
-            str: manga name.
-        """
-        selector = self.manga_selector.manga_name
-        if selector is not None:
-            element = self.soup.select_one(selector)
-            if element is None:
-                raise ParseMangaNameException(selector)
-            return element.text.strip()
-        return self.title
-
-    def parse_chapters_info(self) -> list[MangaChapter]:
-        """
-        Method to get the list of chapters from the parsed webpage.
-
-        Returns:
-            list[MangaChapter]: A list of MangaChapter objects.
-        """
-        chapters = []
-        selector: str = self.manga_selector.list_chapters
-        chapters_web_elements = self.soup.select(selector)
-        if chapters_web_elements is None or len(chapters_web_elements) == 0:
-            raise ParseChaptersListException(selector)
-        for i, element in enumerate(chapters_web_elements):
-            chapter_name_attr = self.manga_selector.chapter_name_attr
-            if chapter_name_attr:
-                element_text = element.get(chapter_name_attr)
-                if element_text is None:
-                    raise ParseChapterNameException(chapter_name_attr)
-            else:
-                element_text = combine_whitespaces(tuple(element.stripped_strings)[0])
-            if self.manga_selector.chapter_name_attr == 'href':
-                element_text = posixpath.basename(element_text.strip().rstrip("/"))
-            chapter_name = element_text.strip().splitlines()[0].strip()
-            if chapter_name.lower() == "chapter":
-                chapter_name = chapter_name + str(len(chapters_web_elements)-i)
-            chapter_link_attr = self.manga_selector.chapter_link_attr or "href"
-            chapter_link = element.get(chapter_link_attr).strip()
-            if chapter_link is None:
-                raise ParseChapterLinkException(chapter_link_attr)
-            chapters.append(MangaChapter(name=chapter_name, link=chapter_link))
-        chapters.reverse()
-        return chapters
-
-    def parse_chapter_images(self, link: str) -> list[str]:
+    async def parse_chapter_images(self, link: str) -> list[str]:
         """
         Parse chapter images
 
@@ -83,19 +49,107 @@ class RequestParser(IMangaParser):
         Returns:
             list[str]: A list of image links.
         """
-        self._load_page(link)
-        image_elements = self.soup.select(self.manga_selector.chapter_images)
-        return [element.get(self.manga_selector.image_link_attr) for element in image_elements]
+        await self._load_page(link)
+        self.scraper_func = self.scraper_func or await self._get_scraper_func('chapter_images')
+        res: list[str] = self.scraper_func(self.soup)
+        return res
 
-    def _load_page(self, link: str):
-        """
-        Navigate to a webpage
+    async def _load_page(self, url: str):
+        """cloudscraper → steal cookies → aiohttp"""
+        domain = urlparse(url).netloc
 
-        Args:
-            link (str): link to the webpage
-        """
-        res: Response = requests.get(link, headers={'User-Agent': USER_AGENT}, timeout=self.timeout)
-        self.soup = BeautifulSoup(res.content, 'html.parser')
+        if domain not in self._session_pool:
+            # Bypass once per domain (sync, but rare)
+            loop = asyncio.get_event_loop()
+            scraper = cloudscraper.create_scraper()
+            resp = await loop.run_in_executor(
+                self.executor, partial(scraper.get, url, timeout=self.timeout)
+            )
+            cookies = {k: v for k, v in resp.cookies.items()}
 
-    def export_html(self, wait_selector=None) -> str:
-        return self.soup.decode()
+            connector = aiohttp.TCPConnector(limit_per_host=20, ttl_dns_cache=300)
+            self._session_pool[domain] = aiohttp.ClientSession(
+                connector=connector,
+                cookies=cookies,
+                headers={'User-Agent': USER_AGENT},
+                timeout=aiohttp.ClientTimeout(total=self.timeout)
+            )
+
+            content = resp.text
+        else:
+            session = self._session_pool[domain]
+            async with session.get(url) as resp:
+                resp.raise_for_status()
+                content = await resp.text()
+
+        tree = HTMLParser(content)
+        self.soup: Node = self.find_content(tree)  # Find FIRST
+        self.clean_html(tree)  # Clean AFTER
+
+    async def _get_scraper_func(self, purpose: str) -> Callable:
+        domain = urlparse(self.manga_url).netloc
+        scraper_file = registry.get_scraper_file(domain, purpose)
+
+        if scraper_file.exists():
+            code = scraper_file.read_text()
+        else:
+            template = PARSE_MANGA_INFO_TEMPLATE if purpose == 'manga_info' else PARSE_CHAPTER_IMAGES_TEMPLATE
+            with (open(template, 'r') as f):
+                messages = [DEFAULT_SYSTEM_MESSAGE,
+                            HumanMessage(f.read().replace("{html}", "".join(self.soup.html.split())))]
+
+                chain = llm | StrOutputParser()
+                code: str = await chain.ainvoke(messages)
+                code = code.strip().lstrip('```python').rstrip('```').strip()
+
+                if code.lower() == "no":
+                    raise Exception("website not supported")
+
+        # Safely compile and return callable
+        func = compile(code, '<scraper>', 'exec')
+        local_ns = {
+            "node": HTMLParser
+        }
+        exec(func, globals(), local_ns)
+        registry.set_scraper_file(scraper_file, code)
+        function_name = f"parse_{purpose}"
+        return local_ns.get(function_name)
+
+    @staticmethod
+    def clean_html(tree: HTMLParser):
+        """Conservative cleaning - only obvious noise."""
+        selectors = [
+            "nav", "footer", "aside", "script", "style", "noscript",
+            "[class*='advert']", "[class^='ad-']",
+            ".sp-wrapper", "[class*='sandpack']"
+        ]
+        # Clean AFTER finding content to avoid breaking structure
+        for sel in selectors:
+            for node in tree.css(sel):
+                node.decompose()
+
+    @staticmethod
+    def find_content(tree: HTMLParser) -> Node:
+        """Generic main content detection - multiple fallbacks."""
+        selectors = [
+            "main", "article", "[role='main']",
+            ".content", "#content", ".main-content",
+            ".entry-content",
+            ".markdown-body", ".prose", ".mdx-content",
+            "div[data-page]"
+        ]
+        for sel in selectors:
+            if node := tree.css_first(sel):
+                return node
+        best_score = 0
+        best_node = tree.body
+
+        for div in tree.css("div"):
+            text_len = len(div.text(strip=True))
+            child_count = len(div.css("li, a"))  # Chapters have many links
+            # Score: text + 100 per chapter-like child
+            score = text_len + (child_count * 100)
+            if score > best_score and text_len > 200:
+                best_score = score
+                best_node = div
+        return best_node

@@ -1,0 +1,41 @@
+import os
+import re
+from pathlib import Path
+
+### Constants ###
+
+USER_AGENT = 'Mozilla/5.0'
+IMG_SRC_ATTR = 'data-src'
+_RE_COMBINE_WHITESPACE = re.compile(r"\s+")
+PARSE_MANGA_INFO_TEMPLATE = 'templates/parse_manga_info_template'
+PARSE_CHAPTER_IMAGES_TEMPLATE = 'templates/parse_chapter_images_template'
+SCRPERS_DIR = "~/.config/gxmd/scrapers"
+
+
+class CodeRegistry:
+    def __init__(self):
+        # Base hardcoded defaults
+        self._docs = {
+            "langchain": "https://docs.langchain.com",
+            "llama-index": "https://docs.llamaindex.ai",
+            "openai": "https://platform.openai.com/docs",
+        }
+        self.scrapers_dir = Path(os.path.expanduser(SCRPERS_DIR))
+        self.scrapers_dir.mkdir(exist_ok=True, parents=True)
+
+    def get_scraper_file(self, domain: str, purpose: str = 'manga_info'):
+        return self.scrapers_dir / f"{domain}/{purpose}.py"
+
+    def set_scraper_file(self, path: Path, code: str):
+        path.parent.mkdir(parents=True, exist_ok=True)  # Create parent directory if not exists
+        with open(path, "w") as f:
+            f.write(code)
+
+    def register(self, name: str, url: str):
+        self._docs[name.lower()] = url
+
+    def list_supported(self):
+        return list(self._docs.keys())
+
+
+registry = CodeRegistry()
