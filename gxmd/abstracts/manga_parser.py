@@ -15,7 +15,7 @@ class IMangaParser(ABC):
         pass
 
     @abstractmethod
-    async def parse_manga_info(self) -> tuple[str, list[MangaChapter]]:
+    async def parse_manga_info(self, manga_url: str) -> tuple[str, list[MangaChapter]]:
         """
         Parse manga info
         """

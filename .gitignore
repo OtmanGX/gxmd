@@ -255,3 +255,5 @@ cython_debug/
 
 # Custom
 Mangas/
+
+test.py

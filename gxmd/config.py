@@ -24,12 +24,19 @@ class CodeRegistry:
         self.scrapers_dir.mkdir(exist_ok=True, parents=True)
 
     def get_scraper_file(self, domain: str, purpose: str = 'manga_info'):
-        return self.scrapers_dir / f"{domain}/{purpose}.py"
+        path = self.scrapers_dir / f"{domain}/{purpose}.py"
+        render_flag = self.scrapers_dir / f"{domain}/{purpose}.render"
+        return path, render_flag.exists()
 
-    def set_scraper_file(self, path: Path, code: str):
-        path.parent.mkdir(parents=True, exist_ok=True)  # Create parent directory if not exists
-        with open(path, "w") as f:
-            f.write(code)
+    def set_scraper_file(self, path: Path, code: str, render=False):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(code, encoding='utf-8')
+
+        render_flag = path.with_suffix('.render')
+        if render:
+            render_flag.touch()
+        else:
+            render_flag.unlink(missing_ok=True)
 
     def register(self, name: str, url: str):
         self._docs[name.lower()] = url

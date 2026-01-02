@@ -19,6 +19,8 @@ import traceback
 
 from gxmd.args import create_argparser
 from gxmd.log import log_error
+from gxmd.parsers.request_parser import RequestParser
+from gxmd.parsers.strategies.playwright_strategy import HtmlRenderer
 from gxmd.services.download_manager import DownloadManager
 from gxmd.services.exporter import CBZExporter, RawExporter
 from gxmd.services.manga_downloader import MangaDownloader
@@ -34,8 +36,7 @@ async def main():
         exporter_class = CBZExporter if args.format == 'cbz' else RawExporter
 
         download_manager = DownloadManager(args.directory, args.n, True)
-        manga_downloader = MangaDownloader.load_manga(args.url, download_manager, exporter_class)
-        await manga_downloader.set_manga_info()
+        manga_downloader = await MangaDownloader.load_manga(args.url, download_manager, exporter_class)
         if args.chapter:
             await manga_downloader.download_chapter(args.chapter)
         elif args.start or args.end:
@@ -64,6 +65,9 @@ async def main():
         res = 2
         traceback.print_exc(file=sys.stderr)
 
+    await RequestParser.close()
+    if HtmlRenderer.is_initialized():
+        await HtmlRenderer().close()
     return res
 
 

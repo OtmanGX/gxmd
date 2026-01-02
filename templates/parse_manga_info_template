@@ -1,4 +1,4 @@
-Task: Implement a function parse_manga_info(node) that accepts a single parameter node of type selectolax.parsers.Node. The function should parse the given node representing a manga page to extract:
+Task: Implement a function parse_manga_info(node) that accepts a single parameter node of type selectolax.parsers.Node. The function should parse the given node representing this manga page: "{link}" to extract:
 - manga_name: a string with the manga title
 - manga_chapters: a list of dictionaries, each with keys 'name' (the chapter title with a format "Chapter 1") and 'link' (the absolute URL to the chapter).
 Assumptions and requirements:
@@ -7,9 +7,9 @@ Assumptions and requirements:
   - 'manga_name' -> str
   - 'manga_chapters' -> list[{'name': str, 'link': str}]
 - Chapters in the list must be in ascending order by chapter number. If chapter numbers are not present, preserve the order as they appear in the page but still attempt to extract a meaningful numeric order when possible.
-- Each chapter entry's 'link' must be an absolute URL. If the link on the page is relative, resolve it against the page's base URL (you may assume the page URL is obtainable from node.base_url or provide a robust fallback).
 - If the manga name or any chapter link cannot be determined, don't try to make up things.
 - The function should be resilient to minor HTML structure variations.
+- Each chapter link must preserved as it is even if it's relative and not an absolute URL.
 - Do not perform I/O beyond parsing the provided node; do not rely on external state.
 - Include imports withing the function if you use a library (e.g. re)
 - Don't document the code.
@@ -22,5 +22,6 @@ Example expected output:
     ...
   ]
 }
+
 HTML of the node:
 {html}

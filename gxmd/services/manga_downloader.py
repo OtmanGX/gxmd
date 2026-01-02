@@ -1,7 +1,9 @@
 import os
 import time
 
-from gxmd.abstracts.manga_parser import IMangaParser
+from aiohttp.web_exceptions import HTTPRequestTimeout
+from playwright._impl._errors import TimeoutError as PlaywrightTimeoutError
+
 from gxmd.config import USER_AGENT
 from gxmd.entities.manga import Manga
 from gxmd.parsers.request_parser import RequestParser
@@ -16,31 +18,21 @@ class MangaDownloader:
     Attributes:
         manga (Manga): manga dataclass object.
         download_manager (DownloadManager): Manages the downloading of files.
-        parser: HTML Parser.
     """
     manga: Manga = None
 
-    @staticmethod
-    def get_parser(manga_link: str) -> IMangaParser:
-        return RequestParser(manga_link)
-
-    def __init__(self, manga_link: str, download_manager: DownloadManager, exporter_class=RawExporter):
+    def __init__(self, manga: Manga, download_manager: DownloadManager, exporter_class=RawExporter):
         """
         Initializes the MangaDownloader object with manga link, selector, and download manager.
 
         Args:
-            manga_link (str): URL to the manga's main page.
+            manga (Manga): manga instance.
             download_manager (DownloadManager): The download manager instance for handling downloads.
             exporter_class (Class): The exporter class.
         """
+        self.manga = manga
         self.download_manager = download_manager
-        self.manga_link = manga_link
-        self.parser = MangaDownloader.get_parser(manga_link)
         self.exporter_class = exporter_class
-
-    async def set_manga_info(self):
-        title, chapters = await self.parser.parse_manga_info()
-        self.manga = Manga(title=title, url=self.manga_link, chapters=chapters)
 
     @property
     def chapters(self):
@@ -80,13 +72,14 @@ class MangaDownloader:
                 last_index = num_chapters if selected_chapters[i] == self.chapters[-1] else i + 1
                 print(f"{last_index}. {selected_chapters[i].name}")
 
-    async def download_chapters(self, start: int = None, end: int = None):
+    async def download_chapters(self, start: int = None, end: int = None, job: dict = None):
         """
         Downloads the specified range of chapters.
 
         Args:
             start (int, optional): Starting index of chapters to download. Defaults to 0.
             end (int, optional): Ending index of chapters to download. Defaults to the last chapter.
+            job (dict, optional): Job details.
         """
         exporter = self.exporter_class(
             os.path.join(self.download_manager.downloads_directory, self.manga.title)
@@ -95,7 +88,8 @@ class MangaDownloader:
         end = end or len(self.chapters)
         for i in range(start, end):
             await self._download_chapter(i, exporter)
-        await self.parser.close()
+            if job:
+                job['progress'] += 1
         exporter.close()
         await self.download_manager.close()
 
@@ -113,7 +107,6 @@ class MangaDownloader:
             os.path.join(self.download_manager.downloads_directory, self.manga.title)
         )
         await self._download_chapter(index - 1, exporter)
-        await self.parser.close()
         exporter.close()
         await self.download_manager.close()
 
@@ -125,7 +118,7 @@ class MangaDownloader:
             index (int): Index of the chapter in the list.
         """
         chapter = self.chapters[index]
-        images_to_download = await self.parser.parse_chapter_images(chapter.link)
+        images_to_download = await RequestParser().parse_chapter_images(chapter.link)
 
         start_message = f"Downloading {chapter.name.capitalize()}"
         await self.download_manager.download_files_async(
@@ -137,7 +130,7 @@ class MangaDownloader:
         )
 
     @classmethod
-    def load_manga(cls, manga_link: str, download_manager: DownloadManager, exporter_class=RawExporter):
+    async def load_manga(cls, manga_link: str, download_manager: DownloadManager, exporter_class=RawExporter):
         """
         Class method to load manga configuration and return an instance of MangaDownloader.
 
@@ -152,4 +145,48 @@ class MangaDownloader:
         Raises:
             Exception: If the website is not supported.
         """
-        return cls(manga_link, download_manager, exporter_class)
+        manga = await cls.load_manga_info(manga_link)
+        return cls(manga, download_manager, exporter_class)
+
+    @classmethod
+    async def load_manga_from_info(cls, manga: Manga, download_manager: DownloadManager, exporter_class=RawExporter):
+        """
+        Class method to load manga configuration and return an instance of MangaDownloader.
+
+        Args:
+            manga (Manga): manga instance.
+            download_manager (DownloadManager): The download manager instance.
+            exporter_class (Class): the exporter class.
+
+        Returns:
+            MangaDownloader: An instance of MangaDownloader.
+
+        Raises:
+            Exception: If the website is not supported.
+        """
+
+        return cls(manga, download_manager, exporter_class)
+
+    @staticmethod
+    async def load_manga_info(manga_link: str):
+        """
+        Static method to load manga information from a given link.
+
+        The method retrieves the appropriate parser based on the manga link, processes
+        the manga information to extract its title and chapters, and then constructs
+        and returns a Manga object populated with the retrieved details.
+
+        Args:
+            manga_link (str): The URL of the manga to load information from.
+
+        Returns:
+            Manga: An object containing the title, URL, and list of chapters.
+
+        Raises:
+            Exception: If the parser fails to retrieve or process the manga information.
+        """
+        try:
+            title, chapters = await RequestParser().parse_manga_info(manga_link)
+        except (PlaywrightTimeoutError, HTTPRequestTimeout):
+            raise TimeoutError("Timeout Error")
+        return Manga(title=title, url=manga_link, chapters=chapters)
