@@ -35,7 +35,7 @@ class CBZExporter(ExporterBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        self.path = Path(self.path).with_suffix(".cbz").absolute() # Note: .cbz is just a renamed .zip
+        self.path = str(Path(self.path).with_suffix(".cbz")) # Note: .cbz is just a renamed .zip
         self.archive = zipfile.ZipFile(
             self.path,
             mode="a",
