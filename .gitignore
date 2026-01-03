@@ -257,3 +257,4 @@ cython_debug/
 Mangas/
 
 test.py
+test.html
