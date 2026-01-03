@@ -7,6 +7,7 @@ import cloudscraper
 
 from gxmd.abstracts.fetch_strategy import FetchStrategy
 from gxmd.config import USER_AGENT
+from gxmd.exceptions import GXMTimeoutError, GXMNetworkError
 
 
 class HttpClientStrategy(FetchStrategy):
@@ -35,9 +36,16 @@ class HttpClientStrategy(FetchStrategy):
             )
             return resp.text
 
-        async with self.sessions[domain].get(url) as resp:
-            resp.raise_for_status()
-            return await resp.text()
+        try:
+            async with self.sessions[domain].get(url) as resp:
+                resp.raise_for_status()
+                return await resp.text()
+        except asyncio.TimeoutError as e:
+            raise GXMTimeoutError(f"HTTP request timed out for: {url}") from e
+        except aiohttp.ClientResponseError as e:
+            raise GXMNetworkError(f"HTTP {e.status} error for: {url}") from e
+        except aiohttp.ClientError as e:
+            raise GXMNetworkError(f"Connection error for: {url}") from e
 
     async def close(self):
         for session in self.sessions.values():

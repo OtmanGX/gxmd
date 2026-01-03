@@ -18,13 +18,13 @@ import sys
 import traceback
 
 from gxmd.args import create_argparser
+from gxmd.exceptions import GXMDownloaderError
 from gxmd.log import log_error
 from gxmd.parsers.request_parser import RequestParser
 from gxmd.parsers.strategies.playwright_strategy import HtmlRenderer
 from gxmd.services.download_manager import DownloadManager
 from gxmd.services.exporter import CBZExporter, RawExporter
 from gxmd.services.manga_downloader import MangaDownloader
-from gxmd.utils import GXMDownloaderError
 
 
 async def main():

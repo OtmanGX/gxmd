@@ -12,11 +12,6 @@ from selectolax.parser import HTMLParser
 from gxmd.config import _RE_COMBINE_WHITESPACE
 
 
-class GXMDownloaderError(Exception):
-    """Raised when errors occur."""
-    pass
-
-
 def generate_random_string(length):
     """Generate a random string of the specified length containing letters and digits."""
     characters = string.ascii_letters + string.digits

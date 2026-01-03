@@ -34,8 +34,9 @@ class RawExporter(ExporterBase):
 class CBZExporter(ExporterBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.path = Path(self.path).with_suffix(".cbz").absolute() # Note: .cbz is just a renamed .zip
         self.archive = zipfile.ZipFile(
-            Path(self.path).with_suffix(".cbz"),  # Note: .cbz is just a renamed .zip
+            self.path,
             mode="a",
             compression=zipfile.ZIP_DEFLATED
         )

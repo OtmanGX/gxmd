@@ -1,8 +1,4 @@
 import os
-import time
-
-from aiohttp.web_exceptions import HTTPRequestTimeout
-from playwright._impl._errors import TimeoutError as PlaywrightTimeoutError
 
 from gxmd.config import USER_AGENT
 from gxmd.entities.manga import Manga
@@ -72,7 +68,7 @@ class MangaDownloader:
                 last_index = num_chapters if selected_chapters[i] == self.chapters[-1] else i + 1
                 print(f"{last_index}. {selected_chapters[i].name}")
 
-    async def download_chapters(self, start: int = None, end: int = None, job: dict = None):
+    async def download_chapters(self, start: int = None, end: int = None, job: dict = None) -> str:
         """
         Downloads the specified range of chapters.
 
@@ -81,7 +77,7 @@ class MangaDownloader:
             end (int, optional): Ending index of chapters to download. Defaults to the last chapter.
             job (dict, optional): Job details.
         """
-        exporter = self.exporter_class(
+        exporter: ExporterBase = self.exporter_class(
             os.path.join(self.download_manager.downloads_directory, self.manga.title)
         )
         start = start - 1 if start else 0
@@ -92,9 +88,8 @@ class MangaDownloader:
                 job['progress'] += 1
         exporter.close()
         await self.download_manager.close()
-
-        time.sleep(0.2)
         print("\nDownload completed ^^")
+        return exporter.path
 
     async def download_chapter(self, index: int):
         """
@@ -185,8 +180,5 @@ class MangaDownloader:
         Raises:
             Exception: If the parser fails to retrieve or process the manga information.
         """
-        try:
-            title, chapters = await RequestParser().parse_manga_info(manga_link)
-        except (PlaywrightTimeoutError, HTTPRequestTimeout):
-            raise TimeoutError("Timeout Error")
+        title, chapters = await RequestParser().parse_manga_info(manga_link)
         return Manga(title=title, url=manga_link, chapters=chapters)

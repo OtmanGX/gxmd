@@ -1,8 +1,10 @@
 import asyncio
 
 from playwright.async_api import Browser, async_playwright
+from playwright.async_api import TimeoutError
 
 from gxmd.abstracts.fetch_strategy import FetchStrategy
+from gxmd.exceptions import GXMTimeoutError
 
 
 class PlaywrightStrategy(FetchStrategy):
@@ -10,7 +12,10 @@ class PlaywrightStrategy(FetchStrategy):
         self.renderer = HtmlRenderer()
 
     async def fetch(self, url: str) -> str:
-        return await self.renderer.render(url)
+        try:
+            return await self.renderer.render(url)
+        except TimeoutError as e:
+            raise GXMTimeoutError(f"Browser timed out while loading: {url}") from e
 
     async def close(self):
         if self.renderer.is_initialized():
