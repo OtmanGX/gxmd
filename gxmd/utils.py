@@ -5,12 +5,11 @@ import random
 import re
 import string
 import sys
-from gxmd.constants import _RE_COMBINE_WHITESPACE
+from urllib.parse import urlparse
 
+from selectolax.parser import HTMLParser
 
-class GXMDownloaderError(Exception):
-    """Raised when errors occur."""
-    pass
+from gxmd.config import _RE_COMBINE_WHITESPACE
 
 
 def generate_random_string(length):
@@ -33,8 +32,9 @@ def get_config_path(filename: str) -> str:
 
 
 def extract_file_extension_url(url: str) -> str:
-    """Extract extension from a URL"""
-    _, file_extension = posixpath.splitext(url)
+    """Extract extension from a URL, ignoring query parameters"""
+    path = urlparse(url).path
+    _, file_extension = posixpath.splitext(path)
     return file_extension
 
 
@@ -66,3 +66,51 @@ def get_threads():
 
 def combine_whitespaces(my_str: str):
     return _RE_COMBINE_WHITESPACE.sub(" ", my_str).strip()
+
+
+def is_script_rendered_images(tree: HTMLParser, threshold=0.5) -> bool:
+    """
+    Detects if a website wraps images in scripts.
+
+    Args:
+        tree (HTMLParser): Raw HTML string.
+        threshold (float): Ratio of hidden images to visible images to trigger 'True'.
+                           If 50% of detected URLs are only in scripts, return True.
+    """
+
+    # 1. Get all standard <img> src attributes
+    # Using a set for O(1) lookups
+    visible_imgs = {
+        node.attributes.get('src')
+        for node in tree.css('img')
+        if node.attributes.get('src')
+    }
+
+    # 2. Extract potential image URLs from <script> tags
+    # Regex for common image extensions (add more if needed)
+    img_pattern = re.compile(r'https?://[^\s"\'<>]+?\.(?:jpg|jpeg|png|webp)')
+
+    script_img_candidates = set()
+    for script in tree.css('script'):
+        if script.text(strip=True):
+            matches = img_pattern.findall(script.text())
+            script_img_candidates.update(matches)
+
+    # 3. Analyze the difference
+    if not script_img_candidates:
+        return False
+
+    # Identify images that are IN SCRIPTS but NOT IN TAGS
+    hidden_images = script_img_candidates - visible_imgs
+
+    total_images_found = len(script_img_candidates) + len(visible_imgs)
+    if total_images_found == 0:
+        return False
+
+    # Calculate "Hidden Ratio"
+    # If we found 100 images in scripts and 0 in tags, ratio is 1.0 (100% hidden)
+    hidden_ratio = len(hidden_images) / len(script_img_candidates) if script_img_candidates else 0
+
+    is_hidden = len(hidden_images) > 0 and hidden_ratio > threshold
+
+    return is_hidden

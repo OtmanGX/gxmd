@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from gxmd.constants import IMG_SRC_ATTR
+from gxmd.config import IMG_SRC_ATTR
 
 
 @dataclass(frozen=True)
@@ -13,4 +13,3 @@ class MangaSelector:
     chapter_name_attr: Optional[str] = None
     image_link_attr: str = IMG_SRC_ATTR
     render: bool = False
-

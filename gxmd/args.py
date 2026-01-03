@@ -21,8 +21,10 @@ def create_argparser():
                         help='Ending index of chapters to download')
 
     parser.add_argument("-d", "--directory", default='Mangas', help="directory path to save the downloaded manga")
-    parser.add_argument("-c", "--config", default=None, help="json config file where manga selectors are stored")
-    parser.add_argument("-n", type=int, default=4,
+    parser.add_argument("-f", "--format", choices=['raw', 'cbz'], default='raw',
+                        help="Export format: 'raw' for folders, 'cbz' for compressed archives (default: raw)")
+
+    parser.add_argument("-n", type=int, default=20,
                         help='The number of concurrent downloads allowed')
 
     parser.add_argument('--version', action='version', version='%(prog)s 0.1.4a')

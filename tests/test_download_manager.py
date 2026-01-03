@@ -1,10 +1,11 @@
 import os
-import unittest
 import shutil
+import unittest
 from concurrent.futures import Future, wait, ALL_COMPLETED
 from io import StringIO
 from unittest.mock import patch
-from gxmd.download_manager import DownloadManager
+
+from gxmd.services.download_manager import DownloadManager
 
 
 class TestDownloadManager(unittest.TestCase):

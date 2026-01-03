@@ -1,12 +1,13 @@
 import unittest
 from unittest.mock import patch, Mock
-from gxmd.constants import USER_AGENT
-from gxmd.download_manager import DownloadManager
-from gxmd.manga_downloader import MangaDownloader
-from gxmd.parsers.request_parser import RequestParser
+
+from gxmd.config import USER_AGENT
 from gxmd.entities.manga import Manga
 from gxmd.entities.manga_chapter import MangaChapter
 from gxmd.entities.manga_selector import MangaSelector
+from gxmd.parsers.request_parser import RequestParser
+from gxmd.services.download_manager import DownloadManager
+from gxmd.services.manga_downloader import MangaDownloader
 
 
 class TestMangaDownloader(unittest.TestCase):
@@ -35,7 +36,7 @@ class TestMangaDownloader(unittest.TestCase):
             self.manga_downloader = MangaDownloader(self.manga_url, self.manga_selector, self.download_manager)
 
     def test_set_manga_info(self):
-        self.manga_downloader._set_manga_info(self.manga_url)
+        self.manga_downloader.set_manga_info(self.manga_url)
         self.assertEqual(self.manga_downloader.manga.title, "Test Manga")
         self.assertEqual(len(self.manga_downloader.manga.chapters), 2)
 

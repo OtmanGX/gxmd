@@ -1,0 +1,27 @@
+Task: Implement a function parse_chapter_images(node) that accepts a single parameter node of type selectolax.parsers.Node. The function should parse the given node representing a manga chapter page: "{link}" to extract ONLY the sequential chapter image URLs in reading order.
+
+CRITICAL FILTERING RULES:
+- Target ONLY images inside the main chapter reader container
+- Only include images that are part of the chapter sequence. Prefer numeric sequencing patterns like 01.jpg, 02.jpg, 03.jpg, etc., and ignore unrelated images or assets.
+- EXCLUDE images with random alphanumeric filenames like 01JBAVX953N5XQX9XRAGQMDBP4-optimized.webp (these are thumbnails/related content)
+- EXCLUDE small thumbnails, ads, social icons, profile pics, and non-chapter images
+- Strip query parameters (?type=q90) - return clean image URLs up to file extension
+
+Requirements:
+- Use selectolax library for parsing (node is a selectolax.parsers.Node)
+- Return Python list of strings in DOM order
+- Check attributes in priority: src, data-src, srcset (first valid URL)
+- Include imports within function (e.g., re, urllib.parse)
+- Stateless, no I/O beyond node parsing
+- No documentation/comments in code
+
+Expected expected output:
+[
+    'https://example.com/manga/chapter-1/01.jpg',
+    'https://example.com/manga/chapter-1/02.jpg',
+    'https://example.com/manga/chapter-1/03.jpg',
+    ...
+]
+
+HTML of the node:
+{html}

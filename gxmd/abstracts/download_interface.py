@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 
 from gxmd.progressbar import ProgressBar
+from gxmd.services.exporter import ExporterBase
 
 
 class IDownloadManager(ABC):
@@ -10,10 +11,9 @@ class IDownloadManager(ABC):
 
     """
 
-    @staticmethod
     @abstractmethod
-    def download_file(link: str, headers: Mapping[str, str | bytes], path: str = None,
-                      progress: ProgressBar = None) -> None:
+    async def download_file_async(self, link: str, headers: Mapping[str, str | bytes], exporter: ExporterBase,
+                                  progress: ProgressBar = None) -> None:
         """
         Downloads a file from the given link.
 
@@ -30,12 +30,13 @@ class IDownloadManager(ABC):
         pass
 
     @abstractmethod
-    def download_files(self, links: [str], headers: Mapping[str, str | bytes] | None, path: str = None) -> None:
+    async def download_files_async(self, links: list[str], headers: Mapping[str, str | bytes] | None,
+                                   path: str = None) -> None:
         """
         Downloads multiple files from the given list of links.
 
         Parameters:
-        - links ([str]): A list of URLs of the files to be downloaded.
+        - links (list[str]): A list of URLs of the files to be downloaded.
         - referer (str): The referer URL to include in the headers of the HTTP requests.
         - path (str): The local directory path to save the downloaded file.
 
