@@ -51,8 +51,6 @@ class RequestParser(IMangaParser):
         _, needs_render = registry.get_scraper_file(domain, 'chapter_images')
 
         soup, render = await self._load_page(chapter_link, True, render=needs_render)
-        with open('test.html', 'w') as f:
-            f.write(soup.html)
         scraper_func = await self._get_scraper_func(chapter_link, soup, 'chapter_images', render)
         res: list[str] = scraper_func(soup)
         return res

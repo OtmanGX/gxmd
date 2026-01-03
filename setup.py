@@ -5,7 +5,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='gxmd',
-    version='0.1.4a',
+    version='0.2.0a',
     packages=find_packages(),
     license='GPL v3.0',
     author='BENAYAD OTMANE',
@@ -36,6 +36,6 @@ setup(
         ],
     },
     install_requires=requirements,
-    package_data={'gxmd': ['data/selectors.json']},
+    package_data={'gxmd': ['templates/*']},
     include_package_data=True
 )

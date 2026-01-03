@@ -5,21 +5,15 @@ from pathlib import Path
 ### Constants ###
 
 USER_AGENT = 'Mozilla/5.0'
-IMG_SRC_ATTR = 'data-src'
 _RE_COMBINE_WHITESPACE = re.compile(r"\s+")
-PARSE_MANGA_INFO_TEMPLATE = 'templates/parse_manga_info_template'
-PARSE_CHAPTER_IMAGES_TEMPLATE = 'templates/parse_chapter_images_template'
+BASE_DIR = Path(__file__).parent
+PARSE_MANGA_INFO_TEMPLATE = BASE_DIR / 'templates' / 'parse_manga_info_template'
+PARSE_CHAPTER_IMAGES_TEMPLATE = BASE_DIR / 'templates' / 'parse_chapter_images_template'
 SCRPERS_DIR = "~/.config/gxmd/scrapers"
 
 
 class CodeRegistry:
     def __init__(self):
-        # Base hardcoded defaults
-        self._docs = {
-            "langchain": "https://docs.langchain.com",
-            "llama-index": "https://docs.llamaindex.ai",
-            "openai": "https://platform.openai.com/docs",
-        }
         self.scrapers_dir = Path(os.path.expanduser(SCRPERS_DIR))
         self.scrapers_dir.mkdir(exist_ok=True, parents=True)
 
