@@ -31,6 +31,7 @@ async def main():
     parser = create_argparser()
     args = parser.parse_args()
     res = 0
+    download_manager = None
     try:
         # Select exporter based on argument
         exporter_class = CBZExporter if args.format == 'cbz' else RawExporter
@@ -66,8 +67,9 @@ async def main():
         traceback.print_exc(file=sys.stderr)
 
     await RequestParser.close()
-    if HtmlRenderer.is_initialized():
-        await HtmlRenderer().close()
+    await HtmlRenderer().close()
+    if download_manager:
+        await download_manager.close()
     return res
 
 

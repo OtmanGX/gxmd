@@ -10,6 +10,7 @@ from selectolax.parser import HTMLParser, Node
 from gxmd.abstracts.manga_parser import IMangaParser
 from gxmd.config import PARSE_MANGA_INFO_TEMPLATE, registry, PARSE_CHAPTER_IMAGES_TEMPLATE
 from gxmd.entities.manga_chapter import MangaChapter
+from gxmd.exceptions import GXMDownloaderError
 from gxmd.parsers.strategies.http_strategy import HttpClientStrategy
 from gxmd.parsers.strategies.playwright_strategy import PlaywrightStrategy
 from gxmd.services.llm import llm, DEFAULT_SYSTEM_MESSAGE
@@ -71,7 +72,7 @@ class RequestParser(IMangaParser):
                 print('Website needs rendering, switching strategy...')
                 return await self._load_page(url, to_parse_images, render=True)
             else:
-                raise Exception("Website not supported")
+                raise GXMDownloaderError("Website not supported")
 
         return soup, render
 

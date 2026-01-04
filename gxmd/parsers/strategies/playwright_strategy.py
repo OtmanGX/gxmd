@@ -53,13 +53,13 @@ class HtmlRenderer:
             return self._browser
         return self._browser
 
-    async def render(self, url: str, timeout: int = 30000) -> str:
+    async def render(self, url: str, timeout: int = 10000) -> str:
         """Render any URL using the singleton browser"""
         browser = await self.ensure_browser()
         page = await browser.new_page()
         await page.goto(url, wait_until='networkidle', timeout=timeout)
         await page.wait_for_load_state()
-        await asyncio.sleep(1)  # SPA hydration
+        await asyncio.sleep(0.9)  # SPA hydration
         content = await page.content()
         await page.close()
         return content

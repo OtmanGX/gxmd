@@ -12,4 +12,8 @@ async def parse_manga_info(url: str) -> Manga:
 async def download_chapters(job: dict, manga: Manga) -> str:
     download_manager = DownloadManager(job.get('id'), with_progress=False)
     manga_downloader = await MangaDownloader.load_manga_from_info(manga, download_manager, CBZExporter)
-    return await manga_downloader.download_chapters(job=job)
+    try:
+        res = await manga_downloader.download_chapters(job=job)
+    finally:
+        await download_manager.close()
+    return res

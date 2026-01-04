@@ -7,6 +7,7 @@ import string
 import sys
 from urllib.parse import urlparse
 
+from selectolax.lexbor import LexborHTMLParser
 from selectolax.parser import HTMLParser
 
 from gxmd.config import _RE_COMBINE_WHITESPACE
@@ -114,3 +115,66 @@ def is_script_rendered_images(tree: HTMLParser, threshold=0.5) -> bool:
     is_hidden = len(hidden_images) > 0 and hidden_ratio > threshold
 
     return is_hidden
+
+
+def needs_rendering(html_content: str):
+    js_frameworks = [
+        r'vue\.js', r'react', r'angular', r'next\.js', r'nuxt\.js',
+        r'svelte', r'react-dom', r'@angular', r'preact', r'solid-js'
+    ]
+
+    # Check script tags for framework signatures
+    framework_match = re.search('|'.join(js_frameworks), html_content, re.IGNORECASE)
+    if framework_match:
+        return True
+
+    # Check for common data attributes
+    data_attrs = [
+        r'data-v-[\w-]+',  # Vue
+        r'data-reactroot', r'data-react-helmet',  # React
+        r'_ngcontent',  # Angular
+    ]
+    if any(re.search(pattern, html_content, re.IGNORECASE) for pattern in data_attrs):
+        return True
+    return False
+
+
+def content_ratio(parser: LexborHTMLParser):
+    # Count meaningful content vs boilerplate
+    text_content = len(parser.text().strip())
+    total_chars = len(parser.html)
+
+    # Very low text ratio suggests JS-generated content
+    return text_content / total_chars if total_chars > 0 else 0
+
+
+def likely_js_rendered(parser: LexborHTMLParser):
+    ratio = content_ratio(parser)
+    return ratio < 0.05  # Less than 5% meaningful content
+
+
+def detect_js_rendering(html_content, to_parse_images: bool = True):
+    """
+    Returns True if site likely needs JS rendering
+    """
+    checks: list[bool] = []
+    parser = LexborHTMLParser(html_content)
+
+    # 1. Framework detection
+    checks.append(needs_rendering(html_content))
+
+    # 2. Content ratio
+    checks.append(likely_js_rendered(parser))
+
+    # 3. Common placeholders
+    placeholders = ['loading...', 'please wait', 'content loading']
+    checks.append(any(phrase in html_content.lower() for phrase in placeholders))
+
+
+    # 4. Manga-specific: check for reader containers without images
+    if to_parse_images:
+        reader_container = parser.css_first('div.py-8.-mx-5, .reader-container, [class*="chapter"], [class*="reader"]')
+        if reader_container and len(reader_container.css('img')) == 0:
+            checks.append(True)
+
+    return any(checks)
