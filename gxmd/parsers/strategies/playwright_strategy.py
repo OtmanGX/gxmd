@@ -46,23 +46,43 @@ class HtmlRenderer:
                                                                                         '--disable-blink-features=AutomationControlled',
                                                                                         '--disable-dev-shm-usage',
                                                                                         '--disable-images',
+                                                                                        '--disable-css',
                                                                                         # Native image blocking
-                                                                                        '--blink-settings=imagesEnabled=false', ])
+                                                                                        '--blink-settings=imagesEnabled=false',
+                                                                                        '--disable-background-timer-throttling',
+                                                                                        '--disable-backgrounding-occluded-windows',
+                                                                                        '--disable-renderer-backgrounding'
+                                                                                        ])
             print("✅ Singleton browser created!")
             HtmlRenderer._initialized = True
             return self._browser
         return self._browser
 
-    async def render(self, url: str, timeout: int = 10000) -> str:
+    async def render(self, url: str, timeout: int = 15000) -> str:
         """Render any URL using the singleton browser"""
         browser = await self.ensure_browser()
-        page = await browser.new_page()
-        await page.goto(url, wait_until='networkidle', timeout=timeout)
+        # Minimal context: no viewport, no extras
+        context = await browser.new_context(
+            viewport=None,
+            java_script_enabled=True,
+            ignore_https_errors=True
+        )
+        page = await context.new_page()
+        # Block all non-HTML/CSS resources upfront
+        # await page.route("**/*.{css,woff,woff2,ttf,eot,svg,png,jpg,jpeg,gif,webp}", lambda route: route.abort())
+
+        # Ultra-fast navigation for HTML only
+        await page.goto(url, wait_until='commit', timeout=timeout)
         await page.wait_for_load_state()
         await asyncio.sleep(0.9)  # SPA hydration
-        content = await page.content()
+
+        # Get raw HTML
+        html = await page.content()
+
         await page.close()
-        return content
+        await context.close()
+
+        return html
 
     async def close(self):
         """Close when done"""

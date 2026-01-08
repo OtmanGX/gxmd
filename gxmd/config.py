@@ -1,11 +1,9 @@
 import os
-import re
 from pathlib import Path
 
 ### Constants ###
 
 USER_AGENT = 'Mozilla/5.0'
-_RE_COMBINE_WHITESPACE = re.compile(r"\s+")
 BASE_DIR = Path(__file__).parent
 PARSE_MANGA_INFO_TEMPLATE = BASE_DIR / 'templates' / 'parse_manga_info_template'
 PARSE_CHAPTER_IMAGES_TEMPLATE = BASE_DIR / 'templates' / 'parse_chapter_images_template'
@@ -31,12 +29,6 @@ class CodeRegistry:
             render_flag.touch()
         else:
             render_flag.unlink(missing_ok=True)
-
-    def register(self, name: str, url: str):
-        self._docs[name.lower()] = url
-
-    def list_supported(self):
-        return list(self._docs.keys())
 
 
 registry = CodeRegistry()

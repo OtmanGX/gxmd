@@ -1,19 +1,18 @@
 import posixpath
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
-from langchain_core.messages import HumanMessage
-from langchain_core.output_parsers import StrOutputParser
 from selectolax.parser import HTMLParser, Node
 
 from gxmd.abstracts.manga_parser import IMangaParser
-from gxmd.config import PARSE_MANGA_INFO_TEMPLATE, registry, PARSE_CHAPTER_IMAGES_TEMPLATE
+from gxmd.config import registry
 from gxmd.entities.manga_chapter import MangaChapter
 from gxmd.exceptions import GXMDownloaderError
 from gxmd.parsers.strategies.http_strategy import HttpClientStrategy
 from gxmd.parsers.strategies.playwright_strategy import PlaywrightStrategy
-from gxmd.services.llm import llm, DEFAULT_SYSTEM_MESSAGE
+from gxmd.services.code_generator import code_generator
+from gxmd.utils import minify_html, find_and_clean_content
 
 
 class RequestParser(IMangaParser):
@@ -24,7 +23,8 @@ class RequestParser(IMangaParser):
     render_fetcher = PlaywrightStrategy()
 
     async def parse_manga_info(self, manga_url: str):
-        domain = urlparse(manga_url).netloc
+        parsed_url = urlparse(manga_url)
+        domain = parsed_url.netloc
         _, needs_render = registry.get_scraper_file(domain, 'manga_info')
 
         soup, render = await self._load_page(manga_url, render=True)
@@ -34,8 +34,13 @@ class RequestParser(IMangaParser):
         manga_chapters = [MangaChapter(**chapter) for chapter in res.get('manga_chapters')]
         for chapter in manga_chapters:
             if not (chapter.link.startswith('http') or chapter.link.startswith('ftp')):
-                base_url = posixpath.dirname(urlparse(manga_url).geturl())
-                chapter.link = posixpath.join(base_url, chapter.link)
+                if chapter.link.strip().startswith("/"):
+                    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                    chapter.link = urljoin(base_url, chapter.link)
+                else:
+                    base_url = posixpath.dirname(parsed_url.geturl())
+                    chapter.link = posixpath.join(base_url, chapter.link)
+
         return manga_name, manga_chapters
 
     async def parse_chapter_images(self, chapter_link: str) -> list[str]:
@@ -51,7 +56,7 @@ class RequestParser(IMangaParser):
         domain = urlparse(chapter_link).netloc
         _, needs_render = registry.get_scraper_file(domain, 'chapter_images')
 
-        soup, render = await self._load_page(chapter_link, True, render=needs_render)
+        soup, render = await self._load_page(chapter_link, True, render=True)
         scraper_func = await self._get_scraper_func(chapter_link, soup, 'chapter_images', render)
         res: list[str] = scraper_func(soup)
         return res
@@ -62,8 +67,7 @@ class RequestParser(IMangaParser):
         content = await fetcher.fetch(url)
 
         tree = HTMLParser(content)
-        soup = self.find_content(tree, to_parse_images)
-        self.clean_html(tree)
+        soup = find_and_clean_content(tree, to_parse_images)
 
         # Auto-fallback logic
         is_supported: bool = True if to_parse_images else len(soup.text(True, "", True)) > 150
@@ -91,19 +95,11 @@ class RequestParser(IMangaParser):
         if scraper_file.exists():
             code = scraper_file.read_text()
         else:
-            template = PARSE_MANGA_INFO_TEMPLATE if purpose == 'manga_info' else PARSE_CHAPTER_IMAGES_TEMPLATE
-            with (open(template, 'r') as f):
-                messages = [DEFAULT_SYSTEM_MESSAGE,
-                            HumanMessage(f.read().replace("{html}", "".join(soup.html.split())).replace("{link}",
-                                                                                                        urlparse(
-                                                                                                            url).geturl()))]
+            html_minified = minify_html(soup.html)
+            code = code_generator.generate_manga_code(purpose, html_minified, url)
 
-                chain = llm | StrOutputParser()
-                code: str = await chain.ainvoke(messages)
-                code = code.strip().lstrip('```python').rstrip('```').strip()
-
-                if code.lower() == "no":
-                    raise Exception("website not supported")
+            if code.lower() == "no":
+                raise Exception("website not supported")
 
         # Safely compile and return callable
         func = compile(code, '<scraper>', 'exec')
@@ -127,47 +123,3 @@ class RequestParser(IMangaParser):
         await cls.render_fetcher.close()
         cls._executor.shutdown(wait=True)
 
-    @staticmethod
-    def clean_html(tree: HTMLParser):
-        """Conservative cleaning - only obvious noise."""
-        selectors = [
-            "nav", "footer", "aside", "style", "script"
-                                               "[class*='advert']", "[class^='ad-']",
-            ".sp-wrapper", "[class*='sandpack']"
-        ]
-        # Clean AFTER finding content to avoid breaking structure
-        for sel in selectors:
-            for node in tree.css(sel):
-                node.decompose()
-
-    @staticmethod
-    def find_content(tree: HTMLParser, to_parse_images: bool = False) -> Node:
-        """Generic main content detection - multiple fallbacks."""
-        selectors = [
-            ".entry-content", "#content", ".content", ".main-content",
-            "main", "[role='main']",
-        ]
-
-        if to_parse_images:
-            selectors.extend([
-                '[class*="reader"]', '[class*="page"]', '[class*="viewer"]',  # Common image readers
-            ])
-        for sel in selectors:
-            if node := tree.css_first(sel):
-                return node
-        best_score = 0
-        best_node = tree.body
-
-        for div in tree.css("div"):
-            text_len = len(div.text(strip=True))
-            if to_parse_images:
-                child_count = len(div.css('img'))  # Boost images
-            else:
-                child_count = len(div.css("li, a"))  # Chapters have many links
-
-            score = text_len + (child_count * 100)
-
-            if score > best_score and text_len > 200:
-                best_score = score
-                best_node = div
-        return best_node

@@ -1,27 +1,66 @@
-Task: Implement a function parse_chapter_images(node) that accepts a single parameter node of type selectolax.parsers.Node. The function should parse the given node representing a manga chapter page: "{link}" to extract ONLY the sequential chapter image URLs in reading order.
+### Task
+Implement a purely functional, stateless Python function `parse_chapter_images(node)` that extracts a clean sequence of manga chapter images from a provided `selectolax.parsers.Node`.
 
-CRITICAL FILTERING RULES:
-- Target ONLY images inside the main chapter reader container
-- Only include images that are part of the chapter sequence. Prefer numeric sequencing patterns like 01.jpg, 02.jpg, 03.jpg, etc., and ignore unrelated images or assets.
-- EXCLUDE images with random alphanumeric filenames like 01JBAVX953N5XQX9XRAGQMDBP4-optimized.webp (these are thumbnails/related content)
-- EXCLUDE small thumbnails, ads, social icons, profile pics, and non-chapter images
-- Strip query parameters (?type=q90) - return clean image URLs up to file extension
+### Function Specifications
+- **Input**: `node` (Type: `selectolax.parsers.Node`).
+- **Output**: `List[str]` (A list of clean, absolute or relative string URLs as they appear in the source).
+- **Context**: The node represents a manga chapter page. Reference Link: "{link}"
 
-Requirements:
-- Use selectolax library for parsing (node is a selectolax.parsers.Node)
-- Return Python list of strings in DOM order
-- Check attributes in priority: src, data-src, srcset (first valid URL)
-- Include imports within function (e.g., re, urllib.parse)
-- Stateless, no I/O beyond node parsing
-- No documentation/comments in code
+### Algorithm & Logic
+The function should prioritize explicit pagination patterns but fall back to density heuristics if none are found.
 
-Expected expected output:
+1.  **Priority Strategy: Pagination Pattern**:
+    -   Iterate through all `img` elements using `node.css('img')`.
+    -   For each image, check if it has a sibling element or parent containing a page counter pattern (e.g., regex `\d+\s*/\s*\d+`).
+    -   *Specific Case*: Look for structures like `<div> <span>1 / 10</span> <img src="..."> </div>`.
+    -   To find siblings, use `img.parent.iter()` to iterate through the parent's direct children, checking their `.text()` content.
+    -   If a significant sequence (≥5 images) with pagination patterns is found, return them immediately.
+    -   If no pagination pattern is detected, proceed to the fallback strategy.
+
+2.  **Fallback Strategy: Container Scoring (Cluster Heuristic)**:
+    -   If no pagination pattern is detected, identify the "Main Reader Container".
+    -   Identify the "Main Reader Container" by traversing all `div` elements in the DOM using `node.css('div')`.
+    -   Score each container based on a combination of:
+        -   The count of valid img descendants (use container.css('img') to find all descendant images).
+        -   A density penalty proportional to the number of element descendants container.css('*') (more descendants = lower density).
+    -   Define the container score as something like: score = img_count / (1 + total_descendant_count)
+    -   Select the densest image container, i.e., the div with: the highest score, and In case of a tie, the fewest total descendants, so containers with the same images but less nesting are preferred.
+
+3.  **Image Extraction**:
+    -   **Attribute Priority**: Extract the URL from `data-src`, `data-lazy-src`, `data-url`, `srcset` (last entry), then `src`.
+
+4.  **Filtering & Cleaning**:
+    -   **Whitespace Removal**: Strip leading/trailing whitespace and newlines from all extracted URLs using `.strip()`.
+    -   **Exclusion**: Discard images with `class` or `id` attributes containing "banner", "logo", "thumb", "advert", or "comment" (case-insensitive).
+    -   **Extension Check**: Discard images where the URL path (before query parameters) does not end with common chapter image extensions (.jpg, .jpeg, .png, .webp, .bmp).
+    -   **Query Parameters**: Preserve query parameters in URLs. Do NOT strip them, as they may be required for CDN authentication or image transformations.
+
+5.  **Deduplication**:
+    -   Remove duplicate URLs while preserving order (first occurrence wins).
+
+### Critical Constraints (API Usage)
+-   **Traversing Siblings**: To find sibling elements, use `node.parent.iter()` which iterates over the parent's direct children. Check each child's `.text()` method for pagination patterns.
+-   **No `child_nodes`**: The `selectolax` Node object does not have `child_nodes` attribute. Use `.iter()` for direct children iteration.
+-   **CSS Selectors**: Use `node.css('selector')` to find elements. This returns all matching descendants, not just direct children.
+-   **Text Extraction**: Use `node.text()` or `node.text(deep=False)` to extract text content. The `deep=False` parameter gets only direct text, excluding descendants.
+-   **Library**: Use `selectolax` for all DOM traversal.
+-   **No Regex for HTML**: Do not use regex to parse HTML strings. Use regex *only* for pagination pattern matching (e.g., "1 / 10"), URL validation, or filename pattern matching.
+-   **Self-Contained**: Include all necessary imports (`re`, `urllib.parse`) inside the function.
+
+### Expected Output Format
+```python
 [
     'https://example.com/manga/chapter-1/01.jpg',
     'https://example.com/manga/chapter-1/02.jpg',
-    'https://example.com/manga/chapter-1/03.jpg',
     ...
 ]
+```
 
-HTML of the node:
+### Implementation Notes
+-   The function should handle edge cases such as malformed HTML, missing attributes, and images with unusual formatting.
+-   Prioritize images within semantic reader containers (e.g., divs with class containing "reading", "chapter", "viewer", "reader").
+-   If both pagination pattern and container scoring fail to find images, return an empty list rather than raising an exception.
+-   The function must remain stateless and free of side effects.
+
+### Source HTML (for context)
 {html}

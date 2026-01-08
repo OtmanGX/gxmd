@@ -1,73 +1,68 @@
-import json
-import os
 import posixpath
-import random
 import re
-import string
-import sys
 from urllib.parse import urlparse
 
 from selectolax.lexbor import LexborHTMLParser
-from selectolax.parser import HTMLParser
-
-from gxmd.config import _RE_COMBINE_WHITESPACE
+from selectolax.parser import HTMLParser, Node
 
 
-def generate_random_string(length):
-    """Generate a random string of the specified length containing letters and digits."""
-    characters = string.ascii_letters + string.digits
-    return ''.join(random.choice(characters) for _ in range(length))
+def minify_html(html: str):
+    return "".join(html.split())
 
+def clean_html(tree: HTMLParser):
+    """Conservative cleaning - only obvious noise."""
+    selectors = [
+        "nav", "footer", "aside", "style", "script"
+                                           "[class*='advert']", "[class^='ad-']",
+        ".sp-wrapper", "[class*='sandpack']"
+    ]
+    # Clean AFTER finding content to avoid breaking structure
+    for sel in selectors:
+        for node in tree.css(sel):
+            node.decompose()
 
-def read_json(filename: str) -> dict:
-    """Read json file and return a dict"""
-    with open(filename, 'r') as f:
-        data = f.read()
-        return json.loads(data)
+def find_and_clean_content(tree: HTMLParser, to_parse_images: bool = False):
+    soup = find_content(tree, to_parse_images)
+    clean_html(tree)
 
+    return soup
 
-def get_config_path(filename: str) -> str:
-    # Assuming the config file is in the same directory as the main script
-    script_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
-    return os.path.join(script_dir, filename)
+def find_content(tree: HTMLParser, to_parse_images: bool = False) -> Node:
+    """Generic main content detection - multiple fallbacks."""
+    selectors = [
+        ".entry-content", "#content", ".content", ".main-content",
+        "main", "[role='main']",
+    ]
 
+    if to_parse_images:
+        selectors.extend([
+            '[class*="reader"]', '[class*="viewer"]',  # Common image readers
+        ])
+    for sel in selectors:
+        if node := tree.css_first(sel):
+            return node
+    best_score = 0
+    best_node = tree.body
+
+    for div in tree.css("div"):
+        text_len = len(div.text(strip=True))
+        if to_parse_images:
+            child_count = len(div.css('img'))  # Boost images
+        else:
+            child_count = len(div.css("li, a"))  # Chapters have many links
+
+        score = text_len + (child_count * 100)
+
+        if score > best_score and text_len > 200:
+            best_score = score
+            best_node = div
+    return best_node
 
 def extract_file_extension_url(url: str) -> str:
     """Extract extension from a URL, ignoring query parameters"""
     path = urlparse(url).path
     _, file_extension = posixpath.splitext(path)
     return file_extension
-
-
-def extract_domain(url: str) -> str:
-    """
-    Extracts the domain name from a URL using regular expressions.
-
-    Args:
-        url (str): The URL from which to extract the domain name.
-
-    Returns:
-        str: The extracted domain name.
-    """
-    pattern = r"(?:https?://)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,6})"
-    match = re.search(pattern, url)
-    if match:
-        return match.group(1)
-    else:
-        return ""
-
-
-def get_threads():
-    """ Returns the number of available threads on a posix/win based system """
-    if sys.platform == 'win32':
-        return int(os.environ['NUMBER_OF_PROCESSORS'])
-    else:
-        return int(os.popen('grep -c cores /proc/cpuinfo').read())
-
-
-def combine_whitespaces(my_str: str):
-    return _RE_COMBINE_WHITESPACE.sub(" ", my_str).strip()
-
 
 def is_script_rendered_images(tree: HTMLParser, threshold=0.5) -> bool:
     """

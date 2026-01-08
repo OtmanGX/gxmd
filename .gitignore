@@ -255,6 +255,6 @@ cython_debug/
 
 # Custom
 Mangas/
-
 test.py
 test.html
+*_copy
