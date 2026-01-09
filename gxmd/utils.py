@@ -1,6 +1,6 @@
 import posixpath
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, ParseResult, urljoin
 
 from selectolax.lexbor import LexborHTMLParser
 from selectolax.parser import HTMLParser, Node
@@ -57,6 +57,18 @@ def find_content(tree: HTMLParser, to_parse_images: bool = False) -> Node:
             best_score = score
             best_node = div
     return best_node
+
+
+def resolve_url(url: str, parsed_url: ParseResult):
+    if not (url.startswith('http') or url.startswith('ftp')):
+        if url.strip().startswith("/"):
+            base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            return urljoin(base_url, url)
+        else:
+            base_url = posixpath.dirname(parsed_url.geturl())
+            return posixpath.join(base_url, url)
+    return url
+    
 
 def extract_file_extension_url(url: str) -> str:
     """Extract extension from a URL, ignoring query parameters"""

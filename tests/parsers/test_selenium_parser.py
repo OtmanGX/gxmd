@@ -1,9 +1,11 @@
 import unittest
 from unittest.mock import patch, MagicMock
+
+from gxmd.parsers.selenium_parser import SeleniumParser
 from selenium.webdriver.remote.webelement import WebElement
+
 from gxmd.entities.manga_chapter import MangaChapter
 from gxmd.entities.manga_selector import MangaSelector
-from gxmd.parsers.selenium_parser import SeleniumParser
 
 
 class TestSeleniumParser(unittest.TestCase):
@@ -89,7 +91,7 @@ class TestSeleniumParser(unittest.TestCase):
         mock_firefox.return_value = mock_driver
 
         parser = SeleniumParser(self.manga_selector, self.manga_url, self.timeout)
-        parser._load_page("http://example.com/chapter1")
+        parser.load_page("http://example.com/chapter1")
 
         mock_driver.get.assert_called_with("http://example.com/chapter1")
 

@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import patch, Mock
+
 from bs4 import BeautifulSoup
 from requests import Response
+
 from gxmd.entities.manga_selector import MangaSelector
 from gxmd.parsers.request_parser import RequestParser
 
@@ -27,7 +29,7 @@ class TestRequestParser(unittest.TestCase):
         mock_response.content = '<html><head><title>Test Manga</title></head><body></body></html>'
         mock_get.return_value = mock_response
 
-        self.parser._load_page(self.manga_url)
+        self.parser.load_page(self.manga_url)
         self.assertIsInstance(self.parser.soup, BeautifulSoup)
         self.assertEqual(self.parser.soup.title.string, "Test Manga")
 
@@ -38,7 +40,7 @@ class TestRequestParser(unittest.TestCase):
                                  'Manga Name</div></body></html>')
         mock_get.return_value = mock_response
 
-        self.parser._load_page(self.manga_url)
+        self.parser.load_page(self.manga_url)
         manga_name = self.parser.parse_manga_name()
         self.assertEqual(manga_name, "Test Manga Name")
 
@@ -58,7 +60,7 @@ class TestRequestParser(unittest.TestCase):
         '''
         mock_get.return_value = mock_response
 
-        self.parser._load_page(self.manga_url)
+        self.parser.load_page(self.manga_url)
         chapters = self.parser.parse_chapters_info()
         self.assertEqual(len(chapters), 2)
         self.assertEqual(chapters[0].name, "chapter1")

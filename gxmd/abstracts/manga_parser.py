@@ -5,7 +5,7 @@ from gxmd.entities.manga_chapter import MangaChapter
 
 class IMangaParser(ABC):
     @abstractmethod
-    def _load_page(self, link: str):
+    def load_page(self, link: str):
         """
         Navigate to a webpage
 
