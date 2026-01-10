@@ -72,21 +72,21 @@ class RequestParser(IMangaParser):
                 print('Website needs rendering, switching strategy...')
                 return await self.load_page(url, to_parse_images, render=True)
             else:
-                raise GXMDownloaderError("Website not supported")
+                raise GXMDownloaderError("Website not supported", 422)
 
         return soup, render
 
     @staticmethod
     async def run_scraper_with_timeout(
-        scraper_func: Callable,
-        soup: Node,
-        timeout_s: float = 2.0,
+            scraper_func: Callable,
+            soup: Node,
+            timeout_s: float = 2.0,
     ):
         try:
             async with asyncio.timeout(timeout_s):
                 return await asyncio.to_thread(scraper_func, soup)
         except asyncio.TimeoutError as e:
-            raise GXMDownloaderError(f"Scraper timed out after {timeout_s}s") from e
+            raise GXMDownloaderError(f"Scraper timed out after {timeout_s}s", 504) from e
 
     @staticmethod
     async def get_scraper_func(url: str, soup: Node, purpose: str,
@@ -105,7 +105,7 @@ class RequestParser(IMangaParser):
             code = await code_generator.generate_manga_code(purpose, html_minified, url)
 
             if code.lower() == "no":
-                raise GXMDownloaderError("Website not supported")
+                raise GXMDownloaderError("Website not supported", 422)
 
         scraper_func = CodeCompiler.compile_code(code, purpose)
         registry.set_scraper_file(scraper_file, code, render=current_render_state)
@@ -119,4 +119,3 @@ class RequestParser(IMangaParser):
         await cls.http_fetcher.close()
         await cls.render_fetcher.close()
         cls._executor.shutdown(wait=True)
-

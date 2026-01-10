@@ -12,6 +12,7 @@ from gxmd.exceptions import GXMTimeoutError, GXMNetworkError
 
 class HttpClientStrategy(FetchStrategy):
     """Handles both standard aiohttp and cloudscraper-bypassed sessions."""
+
     def __init__(self, executor):
         self.executor = executor
         self.sessions: dict[str, aiohttp.ClientSession] = {}
@@ -41,11 +42,11 @@ class HttpClientStrategy(FetchStrategy):
                 resp.raise_for_status()
                 return await resp.text()
         except asyncio.TimeoutError as e:
-            raise GXMTimeoutError(f"HTTP request timed out for: {url}") from e
+            raise GXMTimeoutError(f"HTTP request timed out for: {url}", 504) from e
         except aiohttp.ClientResponseError as e:
-            raise GXMNetworkError(f"HTTP {e.status} error for: {url}") from e
+            raise GXMNetworkError(f"HTTP {e.status} error for: {url}, please try again later", 403) from e
         except aiohttp.ClientError as e:
-            raise GXMNetworkError(f"Connection error for: {url}") from e
+            raise GXMNetworkError(f"Connection error for: {url}", 500) from e
 
     async def close(self):
         for session in self.sessions.values():
