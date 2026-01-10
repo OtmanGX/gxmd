@@ -5,7 +5,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='gxmd',
-    version='0.2.0a',
+    version='0.2.1a',
     packages=find_packages(),
     license='GPL v3.0',
     author='BENAYAD OTMANE',
