@@ -102,7 +102,7 @@ class RequestParser(IMangaParser):
             code = scraper_file.read_text()
         else:
             html_minified = minify_html(soup.html)
-            code = code_generator.generate_manga_code(purpose, html_minified, url)
+            code = await code_generator.generate_manga_code(purpose, html_minified, url)
 
             if code.lower() == "no":
                 raise GXMDownloaderError("Website not supported")
